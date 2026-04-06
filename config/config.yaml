@@ -1,0 +1,49 @@
+project:
+  name: lettuce-disease-ml
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  segmented_dir: data/segmented
+  features_dir: data/features
+  features_file: data/features/features.csv
+  models_dir: models
+  results_dir: results
+  cm_dir: results/confusion_matrix
+
+image:
+  target_size: 256
+  blur_kernel: 5
+  morph_kernel: 5
+
+split:
+  test_size: 0.30
+  random_state: 42
+  stratify: true
+
+models:
+  svm:
+    C: [0.1, 1.0, 10.0]
+    kernel: ["linear", "rbf"]
+    gamma: ["scale", "auto"]
+
+  knn:
+    n_neighbors: [3, 5, 7]
+    weights: ["uniform", "distance"]
+    metric: ["minkowski"]
+
+  rf:
+    n_estimators: [100, 200, 300]
+    max_depth: [null, 10, 20]
+    min_samples_split: [2, 5]
+
+experiments:
+  - name: exp_1
+    test_size: 0.20
+    random_state: 42
+  - name: exp_2
+    test_size: 0.25
+    random_state: 42
+  - name: exp_3
+    test_size: 0.30
+    random_state: 42

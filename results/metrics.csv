@@ -1,0 +1,10 @@
+experiment,model,test_size,random_state,best_params,accuracy
+exp_1,svm,0.2,42,"{""clf__C"": 10.0, ""clf__gamma"": ""scale"", ""clf__kernel"": ""rbf""}",0.4583333333333333
+exp_1,knn,0.2,42,"{""clf__metric"": ""minkowski"", ""clf__n_neighbors"": 5, ""clf__weights"": ""distance""}",0.4583333333333333
+exp_1,rf,0.2,42,"{""max_depth"": null, ""min_samples_split"": 5, ""n_estimators"": 300}",0.3333333333333333
+exp_2,svm,0.25,42,"{""clf__C"": 10.0, ""clf__gamma"": ""scale"", ""clf__kernel"": ""linear""}",0.5
+exp_2,knn,0.25,42,"{""clf__metric"": ""minkowski"", ""clf__n_neighbors"": 3, ""clf__weights"": ""uniform""}",0.4
+exp_2,rf,0.25,42,"{""max_depth"": null, ""min_samples_split"": 2, ""n_estimators"": 100}",0.4
+exp_3,svm,0.3,42,"{""clf__C"": 10.0, ""clf__gamma"": ""scale"", ""clf__kernel"": ""rbf""}",0.3888888888888889
+exp_3,knn,0.3,42,"{""clf__metric"": ""minkowski"", ""clf__n_neighbors"": 7, ""clf__weights"": ""uniform""}",0.4166666666666667
+exp_3,rf,0.3,42,"{""max_depth"": null, ""min_samples_split"": 2, ""n_estimators"": 300}",0.3055555555555556
