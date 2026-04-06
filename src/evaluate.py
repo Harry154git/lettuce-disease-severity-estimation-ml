@@ -135,7 +135,7 @@ if __name__ == "__main__":
     label_encoder = joblib.load(models_dir / "label_encoder.pkl")
 
     # 👉 PILIH MODEL TERBAIK (ubah sesuai hasil metrics.csv)
-    model_path = models_dir / "svm_exp_2.pkl"
+    model_path = models_dir / "knn_exp_2.pkl"
 
     evaluate_model(
         model_path=model_path,
