@@ -1,5 +1,6 @@
 project:
   name: lettuce-disease-ml
+version: v1  # <-- GANTI VERSI DI SINI SAAT MAU TRAINING BARU (v1, v2, v3, dst)
 
 paths:
   raw_dir: data/raw
@@ -31,11 +32,6 @@ models:
     n_neighbors: [3, 5, 7]
     weights: ["uniform", "distance"]
     metric: ["minkowski"]
-
-  rf:
-    n_estimators: [100, 200, 300]
-    max_depth: [null, 10, 20]
-    min_samples_split: [2, 5]
 
 experiments:
   - name: exp_1

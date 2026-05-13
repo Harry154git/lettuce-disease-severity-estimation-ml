@@ -16,21 +16,13 @@ from sklearn.metrics import (
     f1_score
 )
 
-
-# ===============================
-# LOAD CONFIG
-# ===============================
 def load_config(config_path="config/config.yaml"):
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-
-# ===============================
-# PLOT CONFUSION MATRIX
-# ===============================
 def plot_confusion_matrix(cm, classes, output_path):
     plt.figure(figsize=(7, 6))
-    plt.imshow(cm, interpolation="nearest")
+    plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
     plt.title("Confusion Matrix")
     plt.colorbar()
 
@@ -38,11 +30,10 @@ def plot_confusion_matrix(cm, classes, output_path):
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)
 
-    # isi angka di matrix
     for i in range(cm.shape[0]):
         for j in range(cm.shape[1]):
-            plt.text(j, i, str(cm[i, j]),
-                     ha="center", va="center")
+            plt.text(j, i, str(cm[i, j]), ha="center", va="center", 
+                     color="white" if cm[i, j] > cm.max() / 2. else "black")
 
     plt.ylabel("Actual")
     plt.xlabel("Predicted")
@@ -52,95 +43,91 @@ def plot_confusion_matrix(cm, classes, output_path):
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
+def evaluate_all_models():
+    cfg = load_config()
+    base_models_dir = Path(cfg["paths"]["models_dir"])
+    features_file = cfg["paths"]["features_file"]
+    base_output_dir = Path(cfg["paths"]["cm_dir"])
+    metrics_csv_path = Path(cfg["paths"]["results_dir"]) / "metrics.csv"
 
-# ===============================
-# EVALUATE MODEL (NO DATA LEAKAGE)
-# ===============================
-def evaluate_model(model_path, features_file, label_encoder, output_dir, cfg):
+    if not metrics_csv_path.exists():
+        print("[-] Belum ada history training (metrics.csv tidak ditemukan).")
+        return
+
+    metrics_df = pd.read_csv(metrics_csv_path)
     df = pd.read_csv(features_file)
 
-    # Pisahkan fitur & label
-    X = df.drop(columns=["label", "image_id"])
-    y = label_encoder.transform(df["label"])
+    print("\n" + "="*70)
+    print(f"{'EVALUASI SEMUA MODEL & VERSI':^70}")
+    print("="*70)
 
-    # Ambil parameter split dari config
-    test_size = cfg["split"]["test_size"]
-    random_state = cfg["split"]["random_state"]
-    stratify_flag = cfg["split"]["stratify"]
+    eval_results = []
 
-    stratify_y = y if stratify_flag else None
+    for index, row in metrics_df.iterrows():
+        version = row.get("version", "v1")
+        exp_name = row["experiment"]
+        model_name = row["model"]
+        test_size = row["test_size"]
+        random_state = row["random_state"]
+        train_cv_acc = row.get("train_cv_accuracy", None)
 
-    # SPLIT DATA (INI YANG SEBELUMNYA SALAH)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=test_size,
-        random_state=random_state,
-        stratify=stratify_y
-    )
+        # Cari model di dalam folder versinya
+        model_path = base_models_dir / version / f"{model_name}_{exp_name}.pkl"
+        le_path = base_models_dir / version / "label_encoder.pkl"
+        
+        # Fallback jika label encoder tidak ada di folder versi, ambil di root model
+        if not le_path.exists():
+            le_path = base_models_dir / "label_encoder.pkl"
 
-    # Load model
-    model = joblib.load(model_path)
+        if not model_path.exists():
+            print(f"[-] Lewati: {model_path} tidak ditemukan.")
+            continue
 
-    # Predict ONLY test data
-    y_pred = model.predict(X_test)
+        print(f"\n[+] Evaluasi: {model_name.upper()} | Exp: {exp_name} | Versi: {version}")
 
-    # Metrics
-    acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred, average="weighted", zero_division=0)
-    rec = recall_score(y_test, y_pred, average="weighted", zero_division=0)
-    f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
+        label_encoder = joblib.load(le_path)
+        X = df.drop(columns=["label", "image_id"])
+        y = label_encoder.transform(df["label"])
 
-    # Confusion matrix
-    cm = confusion_matrix(y_test, y_pred)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=test_size,
+            random_state=random_state,
+            stratify=y
+        )
 
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+        model = joblib.load(model_path)
+        y_pred = model.predict(X_test)
 
-    # Save confusion matrix image
-    cm_path = output_dir / "confusion_matrix.png"
-    plot_confusion_matrix(cm, classes=label_encoder.classes_, output_path=cm_path)
+        test_acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
 
-    # Save metrics
-    metrics = {
-        "accuracy": float(acc),
-        "precision_weighted": float(prec),
-        "recall_weighted": float(rec),
-        "f1_weighted": float(f1)
-    }
+        cm = confusion_matrix(y_test, y_pred)
+        
+        # Simpan CM terstruktur per versi (contoh: results/confusion_matrix/v1/exp_1/knn_cm.png)
+        cm_out_dir = base_output_dir / version / exp_name
+        cm_path = cm_out_dir / f"{model_name}_cm.png"
+        plot_confusion_matrix(cm, classes=label_encoder.classes_, output_path=cm_path)
 
-    with open(output_dir / "metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, indent=2)
+        eval_results.append({
+            "Version": version,
+            "Experiment": exp_name,
+            "Model": model_name.upper(),
+            "Train_CV_Acc": f"{train_cv_acc*100:.2f}%" if pd.notna(train_cv_acc) else "N/A",
+            "Test_Acc": f"{test_acc*100:.2f}%",
+            "F1_Score": f"{f1*100:.2f}%"
+        })
 
-    # Print hasil
-    print("\n=== Evaluation (NO DATA LEAKAGE) ===")
-    print(json.dumps(metrics, indent=2))
-    print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+    print("\n\n" + "="*70)
+    print(f"{'TABEL PERBANDINGAN AKURASI TRAINING VS TESTING':^70}")
+    print("="*70)
+    comparison_df = pd.DataFrame(eval_results)
+    print(comparison_df.to_string(index=False))
+    print("="*70)
+    
+    eval_summary_path = Path(cfg["paths"]["results_dir"]) / "evaluation_summary.csv"
+    comparison_df.to_csv(eval_summary_path, index=False)
+    print(f"\nRingkasan evaluasi komplit tersimpan di: {eval_summary_path}")
 
-    return metrics
-
-
-# ===============================
-# MAIN
-# ===============================
 if __name__ == "__main__":
-    cfg = load_config()
-
-    models_dir = Path(cfg["paths"]["models_dir"])
-    features_file = cfg["paths"]["features_file"]
-    output_dir = cfg["paths"]["cm_dir"]
-
-    # Load label encoder
-    label_encoder = joblib.load(models_dir / "label_encoder.pkl")
-
-    # 👉 PILIH MODEL TERBAIK (ubah sesuai hasil metrics.csv)
-    model_path = models_dir / "knn_exp_2.pkl"
-
-    evaluate_model(
-        model_path=model_path,
-        features_file=features_file,
-        label_encoder=label_encoder,
-        output_dir=output_dir,
-        cfg=cfg
-    )
+    evaluate_all_models()
