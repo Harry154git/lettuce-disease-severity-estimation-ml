@@ -1,5 +1,10 @@
-data/raw/
-data/processed/
-data/segmented/
-data/features/
+# Mengabaikan seluruh folder dataset
+data/
+
+# Mengabaikan virtual environment
 venv/
+.venv/
+
+# Mengabaikan cache Python
+__pycache__/
+*.pyc
